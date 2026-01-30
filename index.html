@@ -3,44 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Radar de Líneas AR Pro</title>
+    <title>Radar AR Forzado</title>
     <style>
         :root { --blue: #0a84ff; --green: #32d74b; --red: #ff453a; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
-        
-        /* Cámara */
-        #videoBG { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0.7; }
-
-        /* Interfaz */
+        #videoBG { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0.6; }
         .overlay { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); }
-
         .header { padding: 45px 20px 15px; background: rgba(28,28,30,0.9); border-bottom: 2px solid var(--blue); }
         .search-box { display: flex; gap: 10px; }
         input { flex: 1; background: #3a3a3c; border: none; border-radius: 12px; padding: 15px; color: white; font-size: 16px; outline: none; }
-        .btn-go { background: var(--blue); color: white; border: none; border-radius: 12px; padding: 0 20px; font-weight: bold; }
-
-        /* Visor de Líneas de Guía */
         .guide-system { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
-        #instruction { position: absolute; top: 20px; font-size: 1.8rem; font-weight: 900; text-align: center; color: var(--red); text-shadow: 0 2px 10px black; width: 90%; }
-        
-        .v-line { position: absolute; width: 2px; height: 100%; background: rgba(255,255,255,0.2); }
-        
-        #target-frame { 
-            position: absolute; width: 100px; height: 100px; border: 4px solid var(--red); 
-            border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: transform 0.1s ease-out, border-color 0.3s;
-        }
-        #dist-text { font-size: 1.5rem; font-weight: bold; position: absolute; bottom: -40px; white-space: nowrap; }
-
-        /* Estado Alineado */
-        .aligned #target-frame { border-color: var(--green); box-shadow: 0 0 30px var(--green); background: rgba(50, 215, 75, 0.2); }
-        .aligned #instruction { color: var(--green); }
-
-        /* Barra de Diagnóstico */
-        .status-bar { padding: 10px; background: rgba(0,0,0,0.8); font-family: monospace; font-size: 10px; display: flex; justify-content: space-between; }
-        
-        .btn-start { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 30px; background: var(--green); color: white; border: none; border-radius: 25px; font-size: 1.5rem; font-weight: 800; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        #target-frame { position: absolute; width: 120px; height: 120px; border: 4px solid var(--red); border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.1s linear; }
+        .status-bar { padding: 10px; background: rgba(0,0,0,0.9); font-family: monospace; font-size: 11px; display: flex; justify-content: space-around; border-top: 1px solid #333; }
+        .btn-start { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 30px; background: var(--green); color: white; border: none; border-radius: 25px; font-size: 1.5rem; font-weight: 800; z-index: 1000; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        #instruction { position: absolute; top: 20px; font-weight: 900; font-size: 1.5rem; text-align: center; width: 100%; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
@@ -50,97 +26,98 @@
     <div class="overlay">
         <div class="header">
             <div class="search-box">
-                <input type="text" id="destInput" placeholder="¿A dónde quieres ir?">
-                <button class="btn-go" onclick="buscarDestino()">FIJAR</button>
+                <input type="text" id="destInput" placeholder="Escribe destino...">
+                <button style="background:var(--blue); color:white; border:none; border-radius:10px; padding:10px 20px;" onclick="buscarDestino()">IR</button>
             </div>
-            <p id="target-label" style="margin:10px 0 0; font-size:12px; color:var(--blue);">ESPERANDO ACTIVACIÓN...</p>
         </div>
 
         <div class="guide-system" id="radarUI">
-            <div id="instruction">PULSA EL BOTÓN VERDE</div>
-            <div class="v-line" style="left: 25%;"></div>
-            <div class="v-line" style="left: 50%; border-left: 1px dashed white;"></div>
-            <div class="v-line" style="right: 25%;"></div>
-            
+            <div id="instruction">PULSA INICIAR</div>
             <div id="target-frame">
-                <div style="font-size: 10px;">OBJETIVO</div>
-                <div id="dist-text">--</div>
+                <div id="dist-text" style="font-size: 1.5rem; font-weight: bold;">--</div>
             </div>
         </div>
 
         <div class="status-bar">
-            <span id="stat-gps">GPS: OFF</span>
-            <span id="stat-ori">ORI: OFF</span>
-            <span id="stat-acc">ACC: --m</span>
+            <span id="stat-gps">GPS: ...</span>
+            <span id="stat-ori">ORI: ...</span>
         </div>
     </div>
 
-    <button class="btn-start" id="startBtn" onclick="iniciarRadar()">ACTIVAR SENSORES</button>
+    <button class="btn-start" id="startBtn">INICIAR SENSORES</button>
 
     <script>
         let myLat, myLon, tLat, tLon, heading;
 
-        async function iniciarRadar() {
-            // 1. Iniciar Cámara
+        document.getElementById('startBtn').addEventListener('click', async function() {
+            const btn = this;
+            
+            // 1. Activar Cámara
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 document.getElementById('videoBG').srcObject = stream;
-            } catch (e) { alert("Error cámara: " + e.message); }
+            } catch (e) { console.log("Cámara error"); }
 
-            // 2. Iniciar GPS
+            // 2. Activar Brújula (Lógica Robusta para iPhone)
+            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', (e) => {
+                            if (e.webkitCompassHeading) {
+                                heading = e.webkitCompassHeading;
+                                document.getElementById('stat-ori').innerText = "ORI: OK";
+                                document.getElementById('stat-ori').style.color = "#32d74b";
+                                actualizar();
+                            }
+                        }, true);
+                    } else {
+                        document.getElementById('stat-ori').innerText = "ORI: DENEGADO";
+                    }
+                } catch (err) {
+                    document.getElementById('stat-ori').innerText = "ORI: ERROR";
+                    console.error(err);
+                }
+            } else {
+                // Fallback para Android o no-iOS
+                window.addEventListener('deviceorientationabsolute', (e) => {
+                    heading = 360 - e.alpha;
+                    document.getElementById('stat-ori').innerText = "ORI: OK";
+                    actualizar();
+                }, true);
+            }
+
+            // 3. Activar GPS
             navigator.geolocation.watchPosition(pos => {
                 myLat = pos.coords.latitude;
                 myLon = pos.coords.longitude;
                 document.getElementById('stat-gps').innerText = "GPS: OK";
-                document.getElementById('stat-acc').innerText = "ACC: " + pos.coords.accuracy.toFixed(0) + "m";
+                document.getElementById('stat-gps').style.color = "#32d74b";
                 actualizar();
-            }, err => {
+            }, (err) => {
                 document.getElementById('stat-gps').innerText = "GPS: ERROR";
-                alert("GPS Bloqueado. Ve a Ajustes > Safari > Ubicación y permite el acceso.");
             }, { enableHighAccuracy: true });
 
-            // 3. Iniciar Brújula (iPhone Especial)
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const permission = await DeviceOrientationEvent.requestPermission();
-                if (permission === 'granted') {
-                    window.addEventListener('deviceorientation', e => {
-                        heading = e.webkitCompassHeading;
-                        document.getElementById('stat-ori').innerText = "ORI: OK";
-                        actualizar();
-                    }, true);
-                }
-            }
-
-            document.getElementById('startBtn').style.display = 'none';
+            // SIEMPRE quitar el botón tras el intento, funcione o no la brújula
+            btn.style.display = 'none';
             document.getElementById('instruction').innerText = "BUSCANDO SEÑAL...";
-        }
+        });
 
         async function buscarDestino() {
             const q = document.getElementById('destInput').value;
             if(!q) return;
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
-                const data = await res.json();
-                if (data[0]) {
-                    tLat = parseFloat(data[0].lat);
-                    tLon = parseFloat(data[0].lon);
-                    document.getElementById('target-label').innerText = "DESTINO: " + data[0].display_name.split(',')[0].toUpperCase();
-                    actualizar();
-                } else { alert("Lugar no encontrado"); }
-            } catch (e) { alert("Error de red"); }
-        }
-
-        function calcularRumbo(l1, ln1, l2, ln2) {
-            const dL = (ln2 - ln1) * Math.PI / 180;
-            const y = Math.sin(dL) * Math.cos(l2 * Math.PI / 180);
-            const x = Math.cos(l1 * Math.PI / 180) * Math.sin(l2 * Math.PI / 180) - Math.sin(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) * Math.cos(dL);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+            const data = await res.json();
+            if (data[0]) {
+                tLat = parseFloat(data[0].lat);
+                tLon = parseFloat(data[0].lon);
+                document.getElementById('instruction').innerText = "RUMBO FIJADO";
+            }
         }
 
         function actualizar() {
             if (!myLat || !tLat || heading === undefined) return;
 
-            // Distancia
             const R = 6371e3;
             const dLat = (tLat-myLat) * Math.PI/180;
             const dLon = (tLon-myLon) * Math.PI/180;
@@ -148,22 +125,24 @@
             const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             document.getElementById('dist-text').innerText = d > 1000 ? (d/1000).toFixed(1) + "km" : d.toFixed(0) + "m";
 
-            // Cálculo de posición en pantalla
-            const bearing = calcularRumbo(myLat, myLon, tLat, tLon);
+            // Cálculo del rumbo
+            const y = Math.sin(dLon) * Math.cos(tLat*Math.PI/180);
+            const x = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos(dLon);
+            const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
             let diff = (bearing - heading + 360) % 360;
             if (diff > 180) diff -= 360;
 
-            // Sensibilidad: 15 píxeles por grado
-            const moveX = diff * 15;
+            // Mapeo a pantalla (X píxeles por grado)
+            const moveX = diff * 10; 
             document.getElementById('target-frame').style.transform = `translateX(${moveX}px)`;
 
-            // Instrucciones visuales
-            if (Math.abs(diff) < 12) {
-                document.getElementById('instruction').innerText = "¡OBJETIVO ALINEADO!";
-                document.getElementById('radarUI').classList.add('aligned');
+            if (Math.abs(diff) < 15) {
+                document.getElementById('instruction').innerText = "¡ALINEADO!";
+                document.getElementById('target-frame').style.borderColor = "#32d74b";
             } else {
-                document.getElementById('radarUI').classList.remove('aligned');
-                document.getElementById('instruction').innerText = diff > 0 ? "GIRA A LA DERECHA" : "GIRA A LA IZQUIERDA";
+                document.getElementById('target-frame').style.borderColor = "#ff453a";
+                document.getElementById('instruction').innerText = diff > 0 ? "GIRA DERECHA >>" : "<< GIRA IZQUIERDA";
             }
         }
     </script>
