@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brújula de Destinos</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; }
+        #direccion { font-size: 2rem; font-weight: bold; color: #007aff; }
+        .btn { padding: 15px 25px; background: #007aff; color: white; border: none; border-radius: 10px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <h2>Buscador de Destinos</h2>
+    <p>Objetivo: <b>Puerta del Sol, Madrid</b></p>
+    
+    <button class="btn" onclick="solicitarPermisos()">Activar Brújula</button>
+    
+    <div style="margin-top: 30px;">
+        <p>Tu orientación actual:</p>
+        <div id="brujula">0°</div>
+        <hr>
+        <p>Hacia el objetivo:</p>
+        <div id="direccion">Esperando...</div>
+    </div>
+
+    <script>
+        // Coordenadas del objetivo (Ejemplo: Puerta del Sol)
+        const destLat = 40.4167;
+        const destLon = -3.7033;
+        
+        let miLat, miLon;
+
+        // 1. Obtener mi ubicación actual
+        navigator.geolocation.watchPosition(pos => {
+            miLat = pos.coords.latitude;
+            miLon = pos.coords.longitude;
+        });
+
+        // 2. Función para calcular el rumbo (Bearing)
+        function calcularRumbo(lat1, lon1, lat2, lon2) {
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const y = Math.sin(Δλ) * Math.cos(φ2);
+            const x = Math.cos(φ1) * Math.sin(φ2) -
+                      Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+            
+            let brng = Math.atan2(y, x);
+            return (brng * 180 / Math.PI + 360) % 360;
+        }
+
+        // 3. Manejar la orientación en iOS
+        function solicitarPermisos() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response == 'granted') {
+                            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
+        }
+
+        function handleOrientation(event) {
+            // En iOS usamos webkitCompassHeading
+            let alpha = event.webkitCompassHeading || Math.abs(event.alpha - 360);
+            document.getElementById('brujula').innerText = Math.round(alpha) + "°";
+
+            if (miLat && miLon) {
+                const rumboHaciaDestino = calcularRumbo(miLat, miLon, destLat, destLon);
+                const diferencia = (rumboHaciaDestino - alpha + 360) % 360;
+                
+                document.getElementById('direccion').innerText = `Gira a la derecha ${Math.round(diferencia)}°`;
+                
+                if (diferencia < 10 || diferencia > 350) {
+                    document.getElementById('direccion').style.color = "green";
+                    document.getElementById('direccion').innerText = "¡Vas en dirección correcta!";
+                } else {
+                    document.getElementById('direccion').style.color = "#007aff";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
