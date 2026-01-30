@@ -4,165 +4,172 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Radar AR iPhone 12</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Radar AR Pro - iPhone 12</title>
     <style>
-        :root { --ios-blue: #0a84ff; }
-        body {
-            font-family: -apple-system, sans-serif;
-            margin: 0; padding: 0; background: #000;
-            color: white; overflow: hidden; height: 100vh;
-        }
+        :root { --ios-blue: #0a84ff; --ios-green: #32d74b; --ios-red: #ff453a; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
 
-        /* Video de fondo (Cámara) */
-        #videoBackground {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover; z-index: -1;
-        }
+        /* Cámara de fondo */
+        #videoBG { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
 
         /* Capa de Interfaz */
-        .ui-overlay {
-            position: relative; z-index: 10;
-            display: flex; flex-direction: column; height: 100vh;
-            background: rgba(0,0,0,0.3); /* Sombra suave para ver la cámara */
-        }
+        .overlay { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); }
 
-        .header { padding: 20px; background: rgba(28,28,30,0.8); }
+        /* Buscador Superior */
+        .header { padding: 40px 20px 20px; background: rgba(28,28,30,0.85); backdrop-filter: blur(10px); }
         .search-box { display: flex; gap: 10px; }
-        input {
-            flex: 1; background: rgba(255,255,255,0.2); border: 1px solid white;
-            border-radius: 12px; padding: 12px; font-size: 18px; color: white;
-        }
+        input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 15px; font-size: 18px; color: white; outline: none; }
+        .btn-go { background: var(--ios-blue); color: white; border: none; border-radius: 12px; padding: 0 20px; font-weight: bold; }
 
-        .radar-zone {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-
-        /* Brújula traslúcida */
+        /* Radar Central */
+        .radar-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #distance { font-size: 4.5rem; font-weight: 900; text-shadow: 0 4px 15px rgba(0,0,0,0.8); transition: all 0.3s; }
+        
         .compass-ring {
-            width: 280px; height: 280px; 
-            border: 10px solid rgba(255,255,255,0.5);
-            border-radius: 50%; position: relative;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px);
+            width: 300px; height: 300px; border: 12px solid rgba(255,255,255,0.4);
+            border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(2px); transition: all 0.3s;
         }
-
         .arrow {
-            width: 0; height: 0; 
-            border-left: 25px solid transparent; border-right: 25px solid transparent;
-            border-bottom: 90px solid #ff453a; 
-            position: absolute; transform-origin: center 100%; top: 45px;
+            width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent;
+            border-bottom: 110px solid var(--ios-red); position: absolute; 
+            transform-origin: center 100%; top: 40px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
         }
 
-        #distancia { font-size: 4rem; font-weight: 900; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }
+        /* Telemetría Inferior */
+        .footer { padding: 20px; background: rgba(28,28,30,0.85); font-family: monospace; font-size: 0.8rem; color: #aaa; }
 
-        /* Botón de Activación XL */
-        .btn-activate {
-            margin: 20px auto; width: 90%; background: #32d74b; color: white;
-            border: none; padding: 20px; border-radius: 20px; font-size: 1.3rem; font-weight: bold;
+        /* Estados de Alineación */
+        .aligned .compass-ring { border-color: var(--ios-green); box-shadow: 0 0 40px rgba(50, 215, 75, 0.4); }
+        .aligned .arrow { border-bottom-color: var(--ios-green); }
+        .aligned #distance { color: var(--ios-green); transform: scale(1.1); }
+
+        /* Botón Flotante Inicial */
+        .btn-start {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; padding: 25px; background: var(--ios-green); color: white;
+            border: none; border-radius: 20px; font-size: 1.5rem; font-weight: 800; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
-        .aligned .compass-ring { border-color: #32d74b; }
-        .aligned .arrow { border-bottom-color: #32d74b; }
     </style>
 </head>
 <body>
 
-    <video id="videoBackground" autoplay playsinline></video>
+    <video id="videoBG" autoplay playsinline></video>
 
-    <div class="ui-overlay">
+    <div class="overlay" id="mainUI">
         <div class="header">
             <div class="search-box">
-                <input type="text" id="destinoInput" placeholder="Escribe un destino...">
-                <button style="background:var(--ios-blue); color:white; border:none; border-radius:10px; padding:0 15px;" onclick="buscarLugar()">IR</button>
+                <input type="text" id="destInput" placeholder="¿A dónde quieres ir?">
+                <button class="btn-go" onclick="buscarDestino()">FIJAR</button>
             </div>
-            <p id="target-info" style="margin:10px 0 0 0; font-size:0.8rem;">Radar AR Desactivado</p>
+            <p id="destLabel" style="margin:10px 0 0; color:var(--ios-blue); font-weight:bold;">Escribe un lugar y pulsa FIJAR</p>
         </div>
 
-        <div class="radar-zone" id="uiContainer">
-            <div id="distancia">--</div>
+        <div class="radar-container" id="radarArea">
+            <div id="distance">--</div>
             <div class="compass-ring">
-                <div id="flecha" class="arrow"></div>
-                <div id="grados" style="position:absolute; bottom:30px; font-weight:bold;">--°</div>
+                <div id="arrow" class="arrow"></div>
+                <div id="headingText" style="position:absolute; bottom:30px; font-weight:bold;">--°</div>
             </div>
         </div>
 
-        <button class="btn-activate" id="btnMain" onclick="iniciarTodo()">ACTIVAR CÁMARA Y SENSORES</button>
+        <div class="footer">
+            <div>GPS: <span id="posLabel">Lat: --, Lon: --</span></div>
+            <div>PRECISIÓN: <span id="accLabel">--</span>m</div>
+        </div>
     </div>
 
-    <script>
-        let destLat, destLon, miLat, miLon;
+    <button class="btn-start" id="startBtn" onclick="inicializarSistema()">ACTIVAR RADAR AR</button>
 
-        async function buscarLugar() {
-            const q = document.getElementById('destinoInput').value;
+    <script>
+        let myLat, myLon, targetLat, targetLon;
+        let isAligned = false;
+
+        async function inicializarSistema() {
+            // 1. Iniciar Cámara
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" }, audio: false 
+                });
+                document.getElementById('videoBG').srcObject = stream;
+            } catch (e) { alert("Error cámara: Activa permisos"); }
+
+            // 2. Permiso Brújula (iOS)
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === 'granted') {
+                    window.addEventListener('deviceorientation', updateOrientation, true);
+                }
+            } else {
+                window.addEventListener('deviceorientationabsolute', updateOrientation, true);
+            }
+
+            // 3. Iniciar GPS
+            navigator.geolocation.watchPosition(pos => {
+                myLat = pos.coords.latitude;
+                myLon = pos.coords.longitude;
+                document.getElementById('posLabel').innerText = `${myLat.toFixed(4)}, ${myLon.toFixed(4)}`;
+                document.getElementById('accLabel').innerText = pos.coords.accuracy.toFixed(0);
+                updateDistance();
+            }, err => alert("GPS bloqueado. Revisa Ajustes > Safari"), { enableHighAccuracy: true });
+
+            document.getElementById('startBtn').style.display = 'none';
+        }
+
+        async function buscarDestino() {
+            const q = document.getElementById('destInput').value;
+            if(!q) return;
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
             const data = await res.json();
             if (data[0]) {
-                destLat = parseFloat(data[0].lat);
-                destLon = parseFloat(data[0].lon);
-                document.getElementById('target-info').innerText = `OBJETIVO: ${data[0].display_name.split(',')[0]}`;
+                targetLat = parseFloat(data[0].lat);
+                targetLon = parseFloat(data[0].lon);
+                document.getElementById('destLabel').innerText = "RUMBO A: " + data[0].display_name.split(',')[0].toUpperCase();
+                updateDistance();
+            } else { alert("Lugar no encontrado"); }
+        }
+
+        function updateDistance() {
+            if (myLat && targetLat) {
+                const R = 6371e3;
+                const dLat = (targetLat - myLat) * Math.PI / 180;
+                const dLon = (targetLon - myLon) * Math.PI / 180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(myLat*Math.PI/180)*Math.cos(targetLat*Math.PI/180)*Math.sin(dLon/2)**2;
+                const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                document.getElementById('distance').innerText = d > 1000 ? (d/1000).toFixed(1)+"km" : d.toFixed(0)+"m";
             }
         }
 
-        async function iniciarTodo() {
-            // 1. Activar Cámara
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" }, // Usa la cámara trasera
-                    audio: false 
-                });
-                document.getElementById('videoBackground').srcObject = stream;
-            } catch (err) {
-                alert("No se pudo acceder a la cámara. Revisa los permisos.");
-            }
-
-            // 2. Activar GPS
-            navigator.geolocation.watchPosition(pos => {
-                miLat = pos.coords.latitude;
-                miLon = pos.coords.longitude;
-                if(destLat) {
-                    const d = calcularDistancia(miLat, miLon, destLat, destLon);
-                    document.getElementById('distancia').innerText = d > 1000 ? (d/1000).toFixed(1)+"km" : d.toFixed(0)+"m";
-                }
-            }, null, { enableHighAccuracy: true });
-
-            // 3. Activar Brújula (iPhone)
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const status = await DeviceOrientationEvent.requestPermission();
-                if(status === 'granted') window.addEventListener('deviceorientation', hOrient, true);
-            }
-            
-            document.getElementById('btnMain').style.display = 'none';
-        }
-
-        function calcularRumbo(lat1, lon1, lat2, lon2) {
-            const dL = (lon2 - lon1) * Math.PI / 180;
-            const y = Math.sin(dL) * Math.cos(lat2 * Math.PI / 180);
-            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) - Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dL);
+        function calculateBearing(l1, ln1, l2, ln2) {
+            const dL = (ln2 - ln1) * Math.PI / 180;
+            const y = Math.sin(dL) * Math.cos(l2 * Math.PI / 180);
+            const x = Math.cos(l1 * Math.PI / 180) * Math.sin(l2 * Math.PI / 180) - Math.sin(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) * Math.cos(dL);
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
-        function calcularDistancia(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
+        function updateOrientation(e) {
+            const heading = e.webkitCompassHeading || (360 - e.alpha);
+            document.getElementById('headingText').innerText = Math.round(heading) + "° N";
 
-        function hOrient(e) {
-            let heading = e.webkitCompassHeading || (360 - e.alpha);
-            document.getElementById('grados').innerText = Math.round(heading) + "°";
-            if (heading && miLat && destLat) {
-                const rumbo = calcularRumbo(miLat, miLon, destLat, destLon);
-                let diff = (rumbo - heading + 360) % 360;
-                let displayRot = diff > 180 ? diff - 360 : diff;
-                document.getElementById('flecha').style.transform = `rotate(${displayRot}deg)`;
+            if (heading && myLat && targetLat) {
+                const bearing = calculateBearing(myLat, myLon, targetLat, targetLon);
+                let diff = (bearing - heading + 360) % 360;
+                let rot = diff > 180 ? diff - 360 : diff;
                 
-                if(Math.abs(displayRot) < 10) {
-                    document.getElementById('uiContainer').classList.add('aligned');
+                document.getElementById('arrow').style.transform = `rotate(${rot}deg)`;
+
+                // Efecto Alineado (Margen 10°)
+                if (Math.abs(rot) < 10) {
+                    if(!isAligned) {
+                        document.getElementById('radarArea').classList.add('aligned');
+                        if(navigator.vibrate) navigator.vibrate(50);
+                        isAligned = true;
+                    }
                 } else {
-                    document.getElementById('uiContainer').classList.remove('aligned');
+                    document.getElementById('radarArea').classList.remove('aligned');
+                    isAligned = false;
                 }
             }
         }
