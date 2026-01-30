@@ -2,88 +2,187 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brújula de Destinos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Radar iPhone 12</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; }
-        #direccion { font-size: 2rem; font-weight: bold; color: #007aff; }
-        .btn { padding: 15px 25px; background: #007aff; color: white; border: none; border-radius: 10px; font-size: 1rem; }
+        :root {
+            --ios-blue: #007AFF;
+            --ios-bg: #F2F2F7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--ios-bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #000;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 350px;
+            background: white;
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .compass-ring {
+            width: 200px;
+            height: 200px;
+            border: 8px solid #E5E5EA;
+            border-radius: 50%;
+            margin: 20px auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fafafa;
+        }
+
+        .arrow {
+            width: 0; 
+            height: 0; 
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 50px solid var(--ios-blue);
+            position: absolute;
+            transform-origin: center 100%; /* Gira desde la base */
+            top: 50px;
+        }
+
+        #distancia {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--ios-blue);
+            margin: 10px 0;
+        }
+
+        .btn-activate {
+            background-color: var(--ios-blue);
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        #debug {
+            margin-top: 20px;
+            font-size: 0.7rem;
+            color: #8e8e93;
+            text-align: left;
+            background: #eee;
+            padding: 10px;
+            border-radius: 10px;
+            max-height: 80px;
+            overflow-y: auto;
+            width: 90%;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Buscador de Destinos</h2>
-    <p>Objetivo: <b>Puerta del Sol, Madrid</b></p>
-    
-    <button class="btn" onclick="solicitarPermisos()">Activar Brújula</button>
-    
-    <div style="margin-top: 30px;">
-        <p>Tu orientación actual:</p>
-        <div id="brujula">0°</div>
-        <hr>
-        <p>Hacia el objetivo:</p>
-        <div id="direccion">Esperando...</div>
+    <div class="container">
+        <h1 style="margin:0">Buscador GPS</h1>
+        <p id="target-name" style="color: #636366;">Destino: Puerta del Sol, Madrid</p>
+        
+        <div class="compass-ring">
+            <div id="flecha" class="arrow"></div>
+            <div id="grados" style="position: absolute; bottom: 20px; font-weight: bold;">--°</div>
+        </div>
+
+        <div id="distancia">Pulsa el botón</div>
+        
+        <button class="btn-activate" onclick="iniciarSensores()">ACTIVAR SENSORES</button>
     </div>
 
+    <div id="debug">Log: Esperando interacción...</div>
+
     <script>
-        // Coordenadas del objetivo (Ejemplo: Puerta del Sol)
         const destLat = 40.4167;
         const destLon = -3.7033;
-        
         let miLat, miLon;
+        const debug = document.getElementById('debug');
 
-        // 1. Obtener mi ubicación actual
-        navigator.geolocation.watchPosition(pos => {
-            miLat = pos.coords.latitude;
-            miLon = pos.coords.longitude;
-        });
+        function log(msg) {
+            debug.innerHTML += "<br>> " + msg;
+            debug.scrollTop = debug.scrollHeight;
+        }
 
-        // 2. Función para calcular el rumbo (Bearing)
         function calcularRumbo(lat1, lon1, lat2, lon2) {
             const φ1 = lat1 * Math.PI / 180;
             const φ2 = lat2 * Math.PI / 180;
             const Δλ = (lon2 - lon1) * Math.PI / 180;
-
             const y = Math.sin(Δλ) * Math.cos(φ2);
-            const x = Math.cos(φ1) * Math.sin(φ2) -
-                      Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-            
-            let brng = Math.atan2(y, x);
-            return (brng * 180 / Math.PI + 360) % 360;
+            const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
-        // 3. Manejar la orientación en iOS
-        function solicitarPermisos() {
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response == 'granted') {
-                            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-                        }
-                    })
-                    .catch(console.error);
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        async function iniciarSensores() {
+            log("Solicitando permisos...");
+
+            // 1. GPS
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(pos => {
+                    miLat = pos.coords.latitude;
+                    miLon = pos.coords.longitude;
+                    const d = calcularDistancia(miLat, miLon, destLat, destLon);
+                    document.getElementById('distancia').innerText = d.toFixed(2) + " km";
+                    log("GPS OK");
+                }, err => log("Error GPS: " + err.message), { enableHighAccuracy: true });
+            }
+
+            // 2. Brújula (Exclusivo iOS)
+            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const status = await DeviceOrientationEvent.requestPermission();
+                    if (status === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        log("Brújula OK");
+                    } else {
+                        log("Permiso Brújula Denegado");
+                    }
+                } catch (e) {
+                    log("Error: " + e);
+                }
             } else {
-                window.addEventListener('deviceorientation', handleOrientation, true);
+                // Android o navegadores antiguos
+                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                log("Iniciado (No iOS)");
             }
         }
 
         function handleOrientation(event) {
-            // En iOS usamos webkitCompassHeading
-            let alpha = event.webkitCompassHeading || Math.abs(event.alpha - 360);
-            document.getElementById('brujula').innerText = Math.round(alpha) + "°";
-
-            if (miLat && miLon) {
+            // webkitCompassHeading es la clave en iPhone
+            let heading = event.webkitCompassHeading || (360 - event.alpha);
+            
+            if (heading && miLat && miLon) {
                 const rumboHaciaDestino = calcularRumbo(miLat, miLon, destLat, destLon);
-                const diferencia = (rumboHaciaDestino - alpha + 360) % 360;
+                // Calculamos cuánto rotar la flecha
+                const rotacionFlecha = (rumboHaciaDestino - heading);
                 
-                document.getElementById('direccion').innerText = `Gira a la derecha ${Math.round(diferencia)}°`;
-                
-                if (diferencia < 10 || diferencia > 350) {
-                    document.getElementById('direccion').style.color = "green";
-                    document.getElementById('direccion').innerText = "¡Vas en dirección correcta!";
-                } else {
-                    document.getElementById('direccion').style.color = "#007aff";
-                }
+                document.getElementById('flecha').style.transform = `rotate(${rotacionFlecha}deg)`;
+                document.getElementById('grados').innerText = Math.round(heading) + "° N";
             }
         }
     </script>
