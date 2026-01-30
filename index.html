@@ -4,173 +4,149 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Radar AR Pro - iPhone 12</title>
+    <title>Radar de Líneas AR</title>
     <style>
-        :root { --ios-blue: #0a84ff; --ios-green: #32d74b; --ios-red: #ff453a; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
-
-        /* Cámara de fondo */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: sans-serif; overflow: hidden; color: white; }
         #videoBG { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        .overlay { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; background: rgba(0,0,0,0.2); }
 
-        /* Capa de Interfaz */
-        .overlay { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); }
-
-        /* Buscador Superior */
-        .header { padding: 40px 20px 20px; background: rgba(28,28,30,0.85); backdrop-filter: blur(10px); }
-        .search-box { display: flex; gap: 10px; }
-        input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 15px; font-size: 18px; color: white; outline: none; }
-        .btn-go { background: var(--ios-blue); color: white; border: none; border-radius: 12px; padding: 0 20px; font-weight: bold; }
-
-        /* Radar Central */
-        .radar-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #distance { font-size: 4.5rem; font-weight: 900; text-shadow: 0 4px 15px rgba(0,0,0,0.8); transition: all 0.3s; }
+        /* Buscador */
+        .header { padding: 40px 20px 10px; background: rgba(0,0,0,0.6); }
+        .search-box { display: flex; gap: 8px; }
+        input { flex: 1; background: rgba(255,255,255,0.2); border: 1px solid white; border-radius: 10px; padding: 12px; color: white; font-size: 16px; }
         
-        .compass-ring {
-            width: 300px; height: 300px; border: 12px solid rgba(255,255,255,0.4);
-            border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(2px); transition: all 0.3s;
+        /* Sistema de Líneas Guía */
+        .guide-container {
+            flex: 1; position: relative; display: flex; align-items: center; justify-content: center;
         }
-        .arrow {
-            width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent;
-            border-bottom: 110px solid var(--ios-red); position: absolute; 
-            transform-origin: center 100%; top: 40px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+        .guide-line {
+            position: absolute; width: 4px; height: 60vh; background: rgba(255,255,255,0.3);
+            transition: transform 0.1s linear;
+        }
+        .main-target {
+            position: absolute; width: 60px; height: 60px; border: 4px solid #ff453a;
+            border-radius: 10px; transition: all 0.1s linear;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
         }
 
-        /* Telemetría Inferior */
-        .footer { padding: 20px; background: rgba(28,28,30,0.85); font-family: monospace; font-size: 0.8rem; color: #aaa; }
-
-        /* Estados de Alineación */
-        .aligned .compass-ring { border-color: var(--ios-green); box-shadow: 0 0 40px rgba(50, 215, 75, 0.4); }
-        .aligned .arrow { border-bottom-color: var(--ios-green); }
-        .aligned #distance { color: var(--ios-green); transform: scale(1.1); }
-
-        /* Botón Flotante Inicial */
-        .btn-start {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; padding: 25px; background: var(--ios-green); color: white;
-            border: none; border-radius: 20px; font-size: 1.5rem; font-weight: 800; z-index: 100;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        /* Indicador de dirección */
+        #instruction {
+            position: absolute; top: 20%; width: 100%; text-align: center;
+            font-size: 1.5rem; font-weight: bold; text-transform: uppercase;
+            text-shadow: 2px 2px 5px black;
         }
+
+        .aligned .main-target { border-color: #32d74b; background: rgba(50, 215, 75, 0.2); box-shadow: 0 0 20px #32d74b; }
+        #distance { font-size: 3rem; font-weight: 900; position: absolute; bottom: 120px; }
+
+        .status-bar { padding: 10px; background: rgba(0,0,0,0.8); font-size: 10px; font-family: monospace; }
+        .btn-start { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 25px; background: #32d74b; border: none; border-radius: 20px; font-weight: bold; z-index: 100; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
     <video id="videoBG" autoplay playsinline></video>
 
-    <div class="overlay" id="mainUI">
+    <div class="overlay">
         <div class="header">
             <div class="search-box">
-                <input type="text" id="destInput" placeholder="¿A dónde quieres ir?">
-                <button class="btn-go" onclick="buscarDestino()">FIJAR</button>
+                <input type="text" id="destIn" placeholder="Escribe un destino...">
+                <button onclick="buscar()" style="padding:10px; border-radius:10px; border:none; background:#0a84ff; color:white;">FIJAR</button>
             </div>
-            <p id="destLabel" style="margin:10px 0 0; color:var(--ios-blue); font-weight:bold;">Escribe un lugar y pulsa FIJAR</p>
+            <p id="label" style="font-size:12px; color:#0a84ff; margin:10px 0 0 0;">Esperando destino...</p>
         </div>
 
-        <div class="radar-container" id="radarArea">
+        <div class="guide-container" id="radarArea">
+            <div id="instruction">GIRA EL MÓVIL</div>
+            <div class="guide-line" style="transform: translateX(-100px);"></div>
+            <div class="guide-line" style="transform: translateX(100px);"></div>
+            <div id="target" class="main-target">OBJ</div>
             <div id="distance">--</div>
-            <div class="compass-ring">
-                <div id="arrow" class="arrow"></div>
-                <div id="headingText" style="position:absolute; bottom:30px; font-weight:bold;">--°</div>
-            </div>
         </div>
 
-        <div class="footer">
-            <div>GPS: <span id="posLabel">Lat: --, Lon: --</span></div>
-            <div>PRECISIÓN: <span id="accLabel">--</span>m</div>
+        <div class="status-bar" id="debug">
+            GPS: BUSCANDO SEÑAL... | BRÚJULA: ESPERANDO...
         </div>
     </div>
 
-    <button class="btn-start" id="startBtn" onclick="inicializarSistema()">ACTIVAR RADAR AR</button>
+    <button class="btn-start" id="btn" onclick="init()">EMPEZAR ESCÁNER</button>
 
     <script>
-        let myLat, myLon, targetLat, targetLon;
-        let isAligned = false;
+        let myLat, myLon, tLat, tLon, heading;
 
-        async function inicializarSistema() {
-            // 1. Iniciar Cámara
+        async function init() {
+            // Cámara
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" }, audio: false 
-                });
-                document.getElementById('videoBG').srcObject = stream;
-            } catch (e) { alert("Error cámara: Activa permisos"); }
+                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                document.getElementById('videoBG').srcObject = s;
+            } catch(e) { alert("Cámara no disponible"); }
 
-            // 2. Permiso Brújula (iOS)
+            // Brújula
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    window.addEventListener('deviceorientation', updateOrientation, true);
-                }
+                const res = await DeviceOrientationEvent.requestPermission();
+                if(res === 'granted') window.addEventListener('deviceorientation', e => {
+                    heading = e.webkitCompassHeading;
+                    updateUI();
+                });
+            }
+
+            // GPS
+            navigator.geolocation.watchPosition(p => {
+                myLat = p.coords.latitude;
+                myLon = p.coords.longitude;
+                document.getElementById('debug').innerText = `GPS: OK (${myLat.toFixed(3)}, ${myLon.toFixed(3)}) | ACC: ${p.coords.accuracy.toFixed(0)}m`;
+                updateUI();
+            }, e => {
+                document.getElementById('debug').innerText = "ERROR GPS: " + e.message + " (Activa ubicación en Safari)";
+            }, { enableHighAccuracy: true });
+
+            document.getElementById('btn').style.display = 'none';
+        }
+
+        async function buscar() {
+            const q = document.getElementById('destIn').value;
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+            const d = await res.json();
+            if(d[0]) {
+                tLat = parseFloat(d[0].lat);
+                tLon = parseFloat(d[0].lon);
+                document.getElementById('label').innerText = "DESTINO: " + d[0].display_name.split(',')[0].toUpperCase();
+            }
+        }
+
+        function updateUI() {
+            if(!myLat || !tLat || heading === undefined) return;
+
+            // Distancia
+            const R = 6371e3;
+            const dLat = (tLat-myLat)*Math.PI/180;
+            const dLon = (tLon-myLon)*Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.sin(dLon/2)**2;
+            const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            document.getElementById('distance').innerText = dist > 1000 ? (dist/1000).toFixed(1)+"km" : dist.toFixed(0)+"m";
+
+            // Rumbo
+            const y = Math.sin(dLon) * Math.cos(tLat*Math.PI/180);
+            const x = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos(dLon);
+            const bearing = (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+
+            // Movimiento lateral de la mira
+            let diff = (bearing - heading + 360) % 360;
+            if (diff > 180) diff -= 360;
+
+            // Mapeamos la diferencia de grados al ancho de la pantalla (sensibilidad)
+            const moveX = diff * 15; // 15px por grado de diferencia
+            document.getElementById('target').style.transform = `translateX(${moveX}px)`;
+
+            if(Math.abs(diff) < 10) {
+                document.getElementById('instruction').innerText = "¡OBJETIVO ALINEADO!";
+                document.getElementById('radarArea').classList.add('aligned');
+            } else if(diff > 0) {
+                document.getElementById('instruction').innerText = "GIRA A LA DERECHA --->";
+                document.getElementById('radarArea').classList.remove('aligned');
             } else {
-                window.addEventListener('deviceorientationabsolute', updateOrientation, true);
-            }
-
-            // 3. Iniciar GPS
-            navigator.geolocation.watchPosition(pos => {
-                myLat = pos.coords.latitude;
-                myLon = pos.coords.longitude;
-                document.getElementById('posLabel').innerText = `${myLat.toFixed(4)}, ${myLon.toFixed(4)}`;
-                document.getElementById('accLabel').innerText = pos.coords.accuracy.toFixed(0);
-                updateDistance();
-            }, err => alert("GPS bloqueado. Revisa Ajustes > Safari"), { enableHighAccuracy: true });
-
-            document.getElementById('startBtn').style.display = 'none';
-        }
-
-        async function buscarDestino() {
-            const q = document.getElementById('destInput').value;
-            if(!q) return;
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
-            const data = await res.json();
-            if (data[0]) {
-                targetLat = parseFloat(data[0].lat);
-                targetLon = parseFloat(data[0].lon);
-                document.getElementById('destLabel').innerText = "RUMBO A: " + data[0].display_name.split(',')[0].toUpperCase();
-                updateDistance();
-            } else { alert("Lugar no encontrado"); }
-        }
-
-        function updateDistance() {
-            if (myLat && targetLat) {
-                const R = 6371e3;
-                const dLat = (targetLat - myLat) * Math.PI / 180;
-                const dLon = (targetLon - myLon) * Math.PI / 180;
-                const a = Math.sin(dLat/2)**2 + Math.cos(myLat*Math.PI/180)*Math.cos(targetLat*Math.PI/180)*Math.sin(dLon/2)**2;
-                const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                document.getElementById('distance').innerText = d > 1000 ? (d/1000).toFixed(1)+"km" : d.toFixed(0)+"m";
-            }
-        }
-
-        function calculateBearing(l1, ln1, l2, ln2) {
-            const dL = (ln2 - ln1) * Math.PI / 180;
-            const y = Math.sin(dL) * Math.cos(l2 * Math.PI / 180);
-            const x = Math.cos(l1 * Math.PI / 180) * Math.sin(l2 * Math.PI / 180) - Math.sin(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) * Math.cos(dL);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-        }
-
-        function updateOrientation(e) {
-            const heading = e.webkitCompassHeading || (360 - e.alpha);
-            document.getElementById('headingText').innerText = Math.round(heading) + "° N";
-
-            if (heading && myLat && targetLat) {
-                const bearing = calculateBearing(myLat, myLon, targetLat, targetLon);
-                let diff = (bearing - heading + 360) % 360;
-                let rot = diff > 180 ? diff - 360 : diff;
-                
-                document.getElementById('arrow').style.transform = `rotate(${rot}deg)`;
-
-                // Efecto Alineado (Margen 10°)
-                if (Math.abs(rot) < 10) {
-                    if(!isAligned) {
-                        document.getElementById('radarArea').classList.add('aligned');
-                        if(navigator.vibrate) navigator.vibrate(50);
-                        isAligned = true;
-                    }
-                } else {
-                    document.getElementById('radarArea').classList.remove('aligned');
-                    isAligned = false;
-                }
+                document.getElementById('instruction').innerText = "<--- GIRA A LA IZQUIERDA";
+                document.getElementById('radarArea').classList.remove('aligned');
             }
         }
     </script>
