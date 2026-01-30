@@ -4,181 +4,150 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Radar AR Definitivo</title>
+    <title>Radar de Precisión</title>
     <style>
-        :root { --blue: #0a84ff; --green: #32d74b; --red: #ff453a; --bg: rgba(28,28,30,0.9); }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
-        
-        #videoBG { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0.5; }
-        .overlay { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); }
-
-        .header { padding: 45px 20px 15px; background: var(--bg); border-bottom: 2px solid var(--blue); }
-        .search-box { display: flex; gap: 10px; }
-        input { flex: 1; background: #3a3a3c; border: none; border-radius: 12px; padding: 15px; color: white; font-size: 16px; outline: none; }
-        
-        .guide-system { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        #instruction { position: absolute; top: 30px; font-weight: 900; font-size: 1.8rem; text-align: center; width: 100%; text-shadow: 2px 2px 10px #000; color: var(--red); z-index: 5; }
-        
-        /* Línea de horizonte y guía */
-        .v-line { position: absolute; width: 2px; height: 100%; background: rgba(255,255,255,0.2); pointer-events: none; }
-        
-        #target-frame { 
-            position: absolute; width: 140px; height: 140px; border: 5px solid var(--red); 
-            border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: transform 0.1s linear, border-color 0.3s, background 0.3s;
-            z-index: 4;
+        :root { --ios-blue: #0a84ff; --ios-bg: #000; --ios-card: #1c1c1e; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--ios-bg); margin: 0; color: white;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
-        #dist-text { font-size: 1.8rem; font-weight: 900; }
+        /* Cabecera y Buscador */
+        .header { padding: 20px; background: var(--ios-card); border-bottom: 1px solid #38383a; }
+        .search-box { display: flex; gap: 10px; }
+        input {
+            flex: 1; background: #2c2c2e; border: none; border-radius: 12px;
+            padding: 15px; font-size: 18px; color: white;
+        }
+        .btn-search { background: var(--ios-blue); border: none; border-radius: 12px; padding: 0 20px; color: white; font-weight: bold; }
 
-        /* Alineación exitosa */
-        .aligned #target-frame { border-color: var(--green); background: rgba(50, 215, 75, 0.2); box-shadow: 0 0 40px var(--green); }
-        .aligned #instruction { color: var(--green); }
+        /* Área del Radar */
+        .main-radar {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #distancia { font-size: 4rem; font-weight: 900; margin-bottom: 10px; }
+        
+        .compass-ring {
+            width: 280px; height: 280px; border: 10px solid #38383a;
+            border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .arrow {
+            width: 0; height: 0; border-left: 25px solid transparent; border-right: 25px solid transparent;
+            border-bottom: 90px solid #ff453a; position: absolute; transform-origin: center 100%; top: 45px;
+        }
 
-        .status-bar { padding: 12px; background: rgba(0,0,0,0.9); font-family: monospace; font-size: 11px; display: flex; justify-content: space-around; border-top: 1px solid #333; }
-        .btn-start { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 35px; background: var(--green); color: white; border: none; border-radius: 30px; font-size: 1.6rem; font-weight: 900; z-index: 1000; box-shadow: 0 0 60px rgba(0,0,0,1); }
+        /* Panel de Posición Actual */
+        .telemetry {
+            background: var(--ios-card); padding: 15px; border-radius: 20px 20px 0 0;
+            font-family: monospace; font-size: 0.8rem; color: #8e8e93;
+        }
+        .telemetry b { color: var(--ios-blue); }
+
+        /* Estados Visuales */
+        .aligned .compass-ring { border-color: #32d74b; box-shadow: 0 0 30px rgba(50, 215, 75, 0.3); }
+        .aligned .arrow { border-bottom-color: #32d74b; }
+        .aligned #distancia { color: #32d74b; }
+
+        .btn-activate {
+            margin: 20px; background: #32d74b; color: white; border: none;
+            padding: 20px; border-radius: 15px; font-size: 1.2rem; font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <video id="videoBG" autoplay playsinline></video>
-
-    <div class="overlay">
-        <div class="header">
-            <div class="search-box">
-                <input type="text" id="destInput" placeholder="Destino (ej: Madrid)">
-                <button style="background:var(--blue); color:white; border:none; border-radius:10px; padding:10px 20px; font-weight:bold;" onclick="buscarDestino()">FIJAR</button>
-            </div>
+    <div class="header">
+        <div class="search-box">
+            <input type="text" id="destinoInput" placeholder="Destino (ej. Madrid)">
+            <button class="btn-search" onclick="buscarLugar()">FIJAR</button>
         </div>
+        <p id="target-info" style="margin: 10px 0 0 0; font-size: 0.9rem; color: #0a84ff;">Escribe un lugar para empezar</p>
+    </div>
 
-        <div class="guide-system" id="radarUI">
-            <div id="instruction">PULSA INICIAR</div>
-            
-            <div class="v-line" style="left: 50%;"></div>
-            
-            <div id="target-frame">
-                <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">OBJETIVO</div>
-                <div id="dist-text">--</div>
-            </div>
-        </div>
-
-        <div class="status-bar">
-            <span id="stat-gps" style="color:var(--red)">GPS: OFF</span>
-            <span id="stat-ori" style="color:var(--red)">ORI: OFF</span>
-            <span id="stat-acc">ACC: --m</span>
+    <div class="main-radar" id="uiContainer">
+        <div id="distancia">--</div>
+        <div class="compass-ring">
+            <div id="flecha" class="arrow"></div>
+            <div id="grados" style="position: absolute; bottom: 30px;">--°</div>
         </div>
     </div>
 
-    <button class="btn-start" id="startBtn">INICIAR RADAR AR</button>
+    <div class="telemetry">
+        <div>MI POSICIÓN: <span id="my-pos">Lat: --, Lon: --</span></div>
+        <div>PRECISIÓN GPS: <span id="gps-acc">--</span>m</div>
+    </div>
+
+    <button class="btn-activate" id="btnMain" onclick="iniciarSensores()">ACTIVAR RADAR</button>
 
     <script>
-        let myLat, myLon, tLat, tLon, heading;
-        let sensorActive = false;
+        let destLat, destLon, miLat, miLon;
 
-        // BOTÓN DE INICIO (Debe ser click físico para iPhone)
-        document.getElementById('startBtn').addEventListener('click', async function() {
-            const btn = this;
-            
-            // 1. Cámara
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                document.getElementById('videoBG').srcObject = stream;
-            } catch (e) { alert("Cámara no disponible."); }
-
-            // 2. Brújula (Lógica específica iOS 13+)
-            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.addEventListener('deviceorientation', (e) => {
-                            // webkitCompassHeading es la clave en iOS
-                            if (e.webkitCompassHeading !== undefined) {
-                                heading = e.webkitCompassHeading;
-                                document.getElementById('stat-ori').innerText = "ORI: OK";
-                                document.getElementById('stat-ori').style.color = "#32d74b";
-                                actualizar();
-                            }
-                        }, true);
-                    } else {
-                        document.getElementById('stat-ori').innerText = "ORI: DENEGADO";
-                    }
-                } catch (err) {
-                    document.getElementById('stat-ori').innerText = "ORI: ERROR";
-                    console.error(err);
-                }
-            } else {
-                // Fallback Android o navegadores sin permiso explícito
-                window.addEventListener('deviceorientationabsolute', (e) => {
-                    heading = 360 - e.alpha; // Alpha suele ser el heading en otros dispositivos
-                    document.getElementById('stat-ori').innerText = "ORI: OK";
-                    document.getElementById('stat-ori').style.color = "#32d74b";
-                    actualizar();
-                }, true);
+        async function buscarLugar() {
+            const q = document.getElementById('destinoInput').value;
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+            const data = await res.json();
+            if (data[0]) {
+                destLat = parseFloat(data[0].lat);
+                destLon = parseFloat(data[0].lon);
+                document.getElementById('target-info').innerText = `OBJETIVO: ${data[0].display_name.split(',')[0]} (${destLat.toFixed(4)}, ${destLon.toFixed(4)})`;
             }
-
-            // 3. GPS
-            navigator.geolocation.watchPosition(pos => {
-                myLat = pos.coords.latitude;
-                myLon = pos.coords.longitude;
-                document.getElementById('stat-gps').innerText = "GPS: OK";
-                document.getElementById('stat-gps').style.color = "#32d74b";
-                document.getElementById('stat-acc').innerText = "ACC: " + pos.coords.accuracy.toFixed(0) + "m";
-                actualizar();
-            }, (err) => {
-                document.getElementById('stat-gps').innerText = "GPS: ERROR";
-                console.error(err);
-            }, { enableHighAccuracy: true });
-
-            btn.style.display = 'none';
-            document.getElementById('instruction').innerText = "BUSCANDO SEÑAL...";
-        });
-
-        async function buscarDestino() {
-            const q = document.getElementById('destInput').value;
-            if(!q) return;
-            document.getElementById('instruction').innerText = "BUSCANDO...";
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
-                const data = await res.json();
-                if (data[0]) {
-                    tLat = parseFloat(data[0].lat);
-                    tLon = parseFloat(data[0].lon);
-                    document.getElementById('instruction').innerText = "RUMBO FIJADO";
-                    actualizar();
-                } else { alert("No se encontró el lugar."); }
-            } catch (e) { alert("Error de conexión al buscador."); }
         }
 
-        function actualizar() {
-            if (!myLat || !tLat || heading === undefined) return;
+        function calcularRumbo(lat1, lon1, lat2, lon2) {
+            const dL = (lon2 - lon1) * Math.PI / 180;
+            const y = Math.sin(dL) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) - Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dL);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
 
-            // Distancia (Haversine)
-            const R = 6371e3;
-            const dLat = (tLat-myLat) * Math.PI/180;
-            const dLon = (tLon-myLon) * Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.sin(dLon/2)**2;
-            const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            document.getElementById('dist-text').innerText = d > 1000 ? (d/1000).toFixed(1) + "km" : d.toFixed(0) + "m";
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Metros
+            const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; 
+        }
 
-            // Rumbo (Bearing)
-            const y = Math.sin(dLon) * Math.cos(tLat*Math.PI/180);
-            const x = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos(dLon);
-            const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        function iniciarSensores() {
+            // Activar GPS con máxima precisión
+            navigator.geolocation.watchPosition(pos => {
+                miLat = pos.coords.latitude;
+                miLon = pos.coords.longitude;
+                document.getElementById('my-pos').innerText = `Lat: ${miLat.toFixed(5)}, Lon: ${miLon.toFixed(5)}`;
+                document.getElementById('gps-acc').innerText = pos.coords.accuracy.toFixed(0);
 
-            // Diferencia entre donde miro y donde está el destino
-            let diff = (bearing - heading + 360) % 360;
-            if (diff > 180) diff -= 360;
+                if(destLat) {
+                    const d = calcularDistancia(miLat, miLon, destLat, destLon);
+                    document.getElementById('distancia').innerText = d > 1000 ? (d/1000).toFixed(1)+"km" : d.toFixed(0)+"m";
+                }
+            }, null, { enableHighAccuracy: true });
 
-            // Mapear grados a píxeles de pantalla (sensibilidad)
-            const moveX = diff * 12; 
-            document.getElementById('target-frame').style.transform = `translateX(${moveX}px)`;
+            // Activar Brújula iPhone
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(s => {
+                    if(s==='granted') window.addEventListener('deviceorientation', hOrient, true);
+                });
+            }
+            document.getElementById('btnMain').style.display = 'none';
+        }
 
-            // Lógica de guía
-            if (Math.abs(diff) < 15) {
-                document.getElementById('instruction').innerText = "¡OBJETIVO A LA VISTA!";
-                document.getElementById('radarUI').classList.add('aligned');
-            } else {
-                document.getElementById('radarUI').classList.remove('aligned');
-                document.getElementById('instruction').innerText = diff > 0 ? "GIRA A LA DERECHA >>" : "<< GIRA A LA IZQUIERDA";
+        function hOrient(e) {
+            let heading = e.webkitCompassHeading || (360 - e.alpha);
+            document.getElementById('grados').innerText = Math.round(heading) + "°";
+            if (heading && miLat && destLat) {
+                const rumbo = calcularRumbo(miLat, miLon, destLat, destLon);
+                let diff = (rumbo - heading + 360) % 360;
+                let displayRot = diff > 180 ? diff - 360 : diff;
+                document.getElementById('flecha').style.transform = `rotate(${displayRot}deg)`;
+                
+                // Efecto de alineación
+                if(Math.abs(displayRot) < 8) {
+                    document.getElementById('uiContainer').classList.add('aligned');
+                } else {
+                    document.getElementById('uiContainer').classList.remove('aligned');
+                }
             }
         }
     </script>
