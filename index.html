@@ -4,100 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>Radar XL iPhone 12</title>
+    <title>Radar Híptico XL</title>
     <style>
-        :root { 
-            --ios-blue: #007AFF; 
-            --ios-bg: #000000; /* Fondo negro para que resalte más */
-        }
-        
+        :root { --ios-blue: #007AFF; --ios-bg: #000000; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--ios-bg);
-            margin: 0; padding: 0;
+            background-color: var(--ios-bg); margin: 0; 
             display: flex; flex-direction: column; align-items: center;
             height: 100vh; color: white; overflow: hidden;
         }
-
-        /* Buscador Superior Grande */
         .header {
-            width: 100%; padding: 20px 0;
-            background: #1c1c1e; display: flex; flex-direction: column; align-items: center;
+            width: 100%; padding: 20px 0; background: #1c1c1e;
+            display: flex; flex-direction: column; align-items: center;
             border-bottom: 1px solid #38383a;
         }
-
-        .search-box {
-            display: flex; width: 90%; gap: 10px; margin-bottom: 10px;
-        }
-
+        .search-box { display: flex; width: 90%; gap: 10px; margin-bottom: 10px; }
         input {
             flex: 1; background: #2c2c2e; border: none; border-radius: 15px;
             padding: 18px; font-size: 20px; color: white; outline: none;
         }
-
-        .btn-search { 
-            background: var(--ios-blue); color: white; border: none; 
-            border-radius: 15px; padding: 0 25px; font-weight: bold; font-size: 18px;
-        }
-
-        #target-name { 
-            font-size: 1.1rem; color: #0a84ff; font-weight: bold; 
-            max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-
-        /* Brújula Gigante */
+        .btn-search { background: var(--ios-blue); color: white; border: none; border-radius: 15px; padding: 0 25px; font-weight: bold; }
+        
         .compass-container {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            position: relative; width: 100%;
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%;
         }
-
         .compass-ring {
-            width: 320px; height: 320px; border: 12px solid #38383a;
+            width: 300px; height: 300px; border: 12px solid #38383a;
             border-radius: 50%; position: relative;
             display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.3s ease;
         }
-
+        /* Flecha con efecto de brillo */
         .arrow {
             width: 0; height: 0; 
-            border-left: 30px solid transparent;
-            border-right: 30px solid transparent;
-            border-bottom: 100px solid #ff453a; /* Flecha mucho más grande */
+            border-left: 30px solid transparent; border-right: 30px solid transparent;
+            border-bottom: 100px solid #ff453a;
             position: absolute; transform-origin: center 100%; 
-            top: 50px; transition: transform 0.1s linear;
+            top: 40px; transition: transform 0.1s linear, border-bottom-color 0.3s ease;
         }
+        
+        /* Clase para cuando estamos alineados */
+        .aligned .arrow { border-bottom-color: #32d74b; filter: drop-shadow(0 0 15px #32d74b); }
+        .aligned .compass-ring { border-color: #32d74b; }
+        .aligned #distancia { color: #32d74b; transform: scale(1.1); }
 
-        #distancia { 
-            font-size: 3.5rem; /* Texto de distancia enorme */
-            font-weight: 800; color: white; margin-top: 20px; 
-        }
+        #distancia { font-size: 3.5rem; font-weight: 800; color: white; transition: all 0.3s ease; }
+        #grados { position: absolute; bottom: 40px; font-size: 1.5rem; color: #8e8e93; }
 
-        #grados {
-            position: absolute; bottom: 40px; font-size: 1.5rem; color: #8e8e93;
-        }
-
-        /* Botón de Activación Gigante */
         .btn-activate {
             position: absolute; bottom: 40px; width: 85%;
             background-color: #32d74b; color: white; border: none;
             padding: 25px; border-radius: 20px; font-size: 1.5rem; font-weight: 800;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 10;
         }
     </style>
 </head>
-<body>
+<body id="mainBody">
 
     <div class="header">
         <div class="search-box">
             <input type="text" id="destinoInput" placeholder="¿A dónde vas?">
             <button class="btn-search" onclick="buscarLugar()">IR</button>
         </div>
-        <div id="target-name">Introduce un destino</div>
+        <div id="target-name" style="color:#0a84ff">Introduce destino</div>
     </div>
 
-    <div class="compass-container">
+    <div class="compass-container" id="radarContainer">
         <div id="distancia">--</div>
-        
         <div class="compass-ring">
             <div id="flecha" class="arrow"></div>
             <div id="grados">--°</div>
@@ -108,6 +80,7 @@
 
     <script>
         let destLat, destLon, miLat, miLon;
+        let estaAlineado = false;
 
         async function buscarLugar() {
             const query = document.getElementById('destinoInput').value;
@@ -119,13 +92,12 @@
                     destLat = parseFloat(data[0].lat);
                     destLon = parseFloat(data[0].lon);
                     document.getElementById('target-name').innerText = "Rumbo a: " + data[0].display_name.split(',')[0];
-                } else { alert("Lugar no encontrado"); }
+                }
             } catch (e) { alert("Error de conexión"); }
         }
 
         function calcularRumbo(lat1, lon1, lat2, lon2) {
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
+            const φ1 = lat1 * Math.PI / 180; const φ2 = lat2 * Math.PI / 180;
             const Δλ = (lon2 - lon1) * Math.PI / 180;
             const y = Math.sin(Δλ) * Math.cos(φ2);
             const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
@@ -141,27 +113,20 @@
         }
 
         async function iniciarSensores() {
-            // GPS
-            navigator.geolocation.watchPosition(pos => {
-                miLat = pos.coords.latitude;
-                miLon = pos.coords.longitude;
-                if(destLat) {
-                    const d = calcularDistancia(miLat, miLon, destLat, destLon);
-                    document.getElementById('distancia').innerText = d < 1 ? (d*1000).toFixed(0)+"m" : d.toFixed(1)+"km";
-                }
-            }, null, { enableHighAccuracy: true });
-
-            // Brújula
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const status = await DeviceOrientationEvent.requestPermission();
                 if (status === 'granted') {
                     window.addEventListener('deviceorientation', handleOrientation, true);
                     document.getElementById('btnMain').style.display = 'none';
                 }
-            } else {
-                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-                document.getElementById('btnMain').style.display = 'none';
             }
+            navigator.geolocation.watchPosition(pos => {
+                miLat = pos.coords.latitude; miLon = pos.coords.longitude;
+                if(destLat) {
+                    const d = calcularDistancia(miLat, miLon, destLat, destLon);
+                    document.getElementById('distancia').innerText = d < 1 ? (d*1000).toFixed(0)+"m" : d.toFixed(1)+"km";
+                }
+            }, null, { enableHighAccuracy: true });
         }
 
         function handleOrientation(event) {
@@ -170,8 +135,24 @@
             
             if (heading && miLat && miLon && destLat) {
                 const rumboDestino = calcularRumbo(miLat, miLon, destLat, destLon);
-                const rotacion = rumboDestino - heading;
-                document.getElementById('flecha').style.transform = `rotate(${rotacion}deg)`;
+                const rotacion = (rumboDestino - heading + 360) % 360;
+                
+                // Normalizamos la rotación para que sea entre -180 y 180
+                let rotDisplay = rotacion > 180 ? rotacion - 360 : rotacion;
+                document.getElementById('flecha').style.transform = `rotate(${rotDisplay}deg)`;
+
+                // LÓGICA DE ALINEACIÓN (Margen de 10 grados)
+                if (Math.abs(rotDisplay) < 10) {
+                    if (!estaAlineado) {
+                        document.getElementById('radarContainer').classList.add('aligned');
+                        // Vibración en iPhone (Haptic Feedback)
+                        if (navigator.vibrate) navigator.vibrate(50); 
+                        estaAlineado = true;
+                    }
+                } else {
+                    document.getElementById('radarContainer').classList.remove('aligned');
+                    estaAlineado = false;
+                }
             }
         }
     </script>
